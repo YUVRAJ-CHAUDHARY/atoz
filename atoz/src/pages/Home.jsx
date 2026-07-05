@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -63,6 +63,20 @@ export default function Home() {
 
   const printElementRef = useRef(null);
 
+  /* ── Responsive scale: A4 (794px wide) shrinks to fit viewport ── */
+  const A4_W = 794;
+  const A4_H = 1123;
+  const [pageScale, setPageScale] = useState(1);
+  useEffect(() => {
+    const calc = () => {
+      const avail = window.innerWidth - 24;
+      setPageScale(avail < A4_W ? avail / A4_W : 1);
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, []);
+
   const subtotal  = items.reduce((s, it) => s + (Number(it.qty||0) * Number(it.rate||0) * (1 - Number(it.discount||0)/100)), 0);
   const sgstTotal = items.reduce((s, it) => s + (Number(it.qty||0) * Number(it.rate||0) * (1 - Number(it.discount||0)/100)) * (Number(it.sgst||0)/100), 0);
   const cgstTotal = items.reduce((s, it) => s + (Number(it.qty||0) * Number(it.rate||0) * (1 - Number(it.discount||0)/100)) * (Number(it.cgst||0)/100), 0);
@@ -115,7 +129,7 @@ export default function Home() {
   const iStyle = { border: 'none', outline: 'none', background: 'transparent', fontFamily: FONT, padding: 0, margin: 0, width: '100%' };
 
   return (
-    <div style={{ background: '#c8c8c8', minHeight: '100vh', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+    <div style={{ background: '#c8c8c8', minHeight: '100vh', padding: pageScale < 1 ? '8px' : '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
@@ -145,16 +159,21 @@ export default function Home() {
       ` }} />
 
       {/* Toolbar */}
-      <div className="noprint" style={{ width: '210mm', background: 'white', padding: '7px 14px', borderRadius: '6px', boxShadow: '0 1px 4px rgba(0,0,0,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: B }}>
-        <span style={{ fontSize: '12px', fontWeight: 'bold', fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px' }}>A2Z Invoice System</span>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={addRow}              style={{ padding: '4px 12px', background: '#2563eb', color: 'white', fontSize: '12px', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: FONT }}>+ Add Item</button>
-          <button onClick={() => window.print()} style={{ padding: '4px 12px', background: '#15803d', color: 'white', fontSize: '12px', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: FONT }}>Print (A4)</button>
-          <button onClick={handleGeneratePDF}   style={{ padding: '4px 12px', background: '#111',    color: 'white', fontSize: '12px', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: FONT }}>Save PDF</button>
+      <div className="noprint" style={{ width: pageScale < 1 ? `${Math.round(A4_W * pageScale)}px` : '210mm', background: 'white', padding: '7px 10px', borderRadius: '6px', boxShadow: '0 1px 4px rgba(0,0,0,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: B, flexWrap: 'wrap', gap: '6px' }}>
+        <span style={{ fontSize: pageScale < 1 ? '10px' : '12px', fontWeight: 'bold', fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px' }}>A2Z Invoice</span>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <button onClick={addRow}              style={{ padding: pageScale < 1 ? '4px 8px' : '4px 12px', background: '#2563eb', color: 'white', fontSize: pageScale < 1 ? '10px' : '12px', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: FONT }}>+ Item</button>
+          <button onClick={() => window.print()} style={{ padding: pageScale < 1 ? '4px 8px' : '4px 12px', background: '#15803d', color: 'white', fontSize: pageScale < 1 ? '10px' : '12px', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: FONT }}>Print</button>
+          <button onClick={handleGeneratePDF}   style={{ padding: pageScale < 1 ? '4px 8px' : '4px 12px', background: '#111',    color: 'white', fontSize: pageScale < 1 ? '10px' : '12px', fontWeight: 'bold', border: 'none', borderRadius: '4px', cursor: 'pointer', fontFamily: FONT }}>PDF</button>
         </div>
       </div>
 
-      {/* A4 Page */}
+      {/* A4 Page — scale wrapper keeps layout correct on mobile */}
+      <div style={{
+        width:  pageScale < 1 ? `${Math.round(A4_W * pageScale)}px` : '210mm',
+        height: pageScale < 1 ? `${Math.round(A4_H * pageScale)}px` : '297mm',
+        position: 'relative', flexShrink: 0
+      }}>
       <div
         ref={printElementRef}
         className="pzone"
@@ -162,7 +181,11 @@ export default function Home() {
           width: '210mm', height: '297mm', background: 'white', border: B,
           padding: '5mm', fontFamily: FONT, color: 'black',
           display: 'flex', flexDirection: 'column',
-          position: 'relative', overflow: 'hidden', fontSize: '11px', lineHeight: 1.55
+          position: pageScale < 1 ? 'absolute' : 'relative',
+          top: 0, left: 0,
+          overflow: 'hidden', fontSize: '11px', lineHeight: 1.55,
+          transform: pageScale < 1 ? `scale(${pageScale})` : 'none',
+          transformOrigin: 'top left',
         }}
       >
         {/* Watermark */}
@@ -464,6 +487,7 @@ export default function Home() {
 
         </div>
       </div>
+      </div>{/* end scale wrapper */}
     </div>
   );
 }
