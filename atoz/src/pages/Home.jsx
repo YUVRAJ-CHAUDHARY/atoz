@@ -63,14 +63,13 @@ export default function Home() {
 
   const printElementRef = useRef(null);
 
-  /* ── Responsive scale: A4 (794px wide) shrinks to fit viewport ── */
+  /* ── Responsive zoom: A4 (794px wide) shrinks to fit viewport ── */
   const A4_W = 794;
-  const A4_H = 1123;
   const [pageScale, setPageScale] = useState(1);
   useEffect(() => {
     const calc = () => {
-      const avail = window.innerWidth - 24;
-      setPageScale(avail < A4_W ? avail / A4_W : 1);
+      const vw = window.innerWidth;
+      setPageScale(vw < A4_W + 16 ? (vw - 16) / A4_W : 1);
     };
     calc();
     window.addEventListener('resize', calc);
@@ -129,12 +128,17 @@ export default function Home() {
   const iStyle = { border: 'none', outline: 'none', background: 'transparent', fontFamily: FONT, padding: 0, margin: 0, width: '100%' };
 
   return (
-    <div style={{ background: '#c8c8c8', minHeight: '100vh', padding: pageScale < 1 ? '8px' : '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+    <div className="app-shell" style={{ background: '#c8c8c8', minHeight: '100vh', padding: pageScale < 1 ? '8px' : '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page { size: A4 portrait; margin: 0mm !important; }
+          html, body { height: auto !important; margin: 0 !important; overflow: hidden !important; }
           body * { visibility: hidden; }
+          .app-shell {
+            min-height: 0 !important; height: auto !important;
+            padding: 0 !important; gap: 0 !important; margin: 0 !important;
+          }
           .pzone, .pzone * { visibility: visible; }
           .pzone {
             position: absolute !important; left: 0 !important; top: 0 !important;
@@ -146,6 +150,7 @@ export default function Home() {
           input { border: none !important; background: transparent !important; outline: none !important; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .noprint { display: none !important; }
+          .pzone { zoom: 1 !important; }
         }
         * { box-sizing: border-box; }
         input {
@@ -168,12 +173,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* A4 Page — scale wrapper keeps layout correct on mobile */}
-      <div style={{
-        width:  pageScale < 1 ? `${Math.round(A4_W * pageScale)}px` : '210mm',
-        height: pageScale < 1 ? `${Math.round(A4_H * pageScale)}px` : '297mm',
-        position: 'relative', flexShrink: 0
-      }}>
+      {/* A4 Page — zoom shrinks naturally without needing a wrapper */}
       <div
         ref={printElementRef}
         className="pzone"
@@ -181,11 +181,8 @@ export default function Home() {
           width: '210mm', height: '297mm', background: 'white', border: B,
           padding: '5mm', fontFamily: FONT, color: 'black',
           display: 'flex', flexDirection: 'column',
-          position: pageScale < 1 ? 'absolute' : 'relative',
-          top: 0, left: 0,
           overflow: 'hidden', fontSize: '11px', lineHeight: 1.55,
-          transform: pageScale < 1 ? `scale(${pageScale})` : 'none',
-          transformOrigin: 'top left',
+          zoom: pageScale,
         }}
       >
         {/* Watermark */}
@@ -487,7 +484,6 @@ export default function Home() {
 
         </div>
       </div>
-      </div>{/* end scale wrapper */}
     </div>
   );
 }
